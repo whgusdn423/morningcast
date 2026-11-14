@@ -1,0 +1,44 @@
+name: Build MorningCast APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Unpack app source
+        run: |
+          if [ -f project.tar.gz ]; then tar -xzf project.tar.gz; fi
+          ls -la
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Build APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon --stacktrace assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk MorningCast.apk
+
+      - name: Publish to Releases (phone download page)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="build-${{ github.run_number }}-${{ github.run_attempt }}"
+          gh release create "$TAG" MorningCast.apk \
+            --repo "${{ github.repository }}" \
+            --title "MorningCast 1.0.${{ github.run_number }}" \
+            --notes "휴대폰에서 아래 MorningCast.apk 를 눌러 내려받아 설치하세요." \
+            --latest
